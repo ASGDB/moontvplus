@@ -124,6 +124,65 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // 特殊处理 xiaoya 源
+  if (sourceCode === 'xiaoya') {
+    try {
+      const config = await getConfig();
+      const xiaoyaConfig = config.XiaoyaConfig;
+
+      if (
+        !xiaoyaConfig ||
+        !xiaoyaConfig.Enabled ||
+        !xiaoyaConfig.ServerURL
+      ) {
+        throw new Error('小雅未配置或未启用');
+      }
+
+      const { XiaoyaClient } = await import('@/lib/xiaoya.client');
+      const { getXiaoyaMetadata, getXiaoyaEpisodes } = await import('@/lib/xiaoya-metadata');
+
+      const client = new XiaoyaClient(
+        xiaoyaConfig.ServerURL,
+        xiaoyaConfig.Username,
+        xiaoyaConfig.Password,
+        xiaoyaConfig.Token
+      );
+
+      // 获取元数据
+      const metadata = await getXiaoyaMetadata(
+        client,
+        id, // id 就是视频路径
+        config.SiteConfig.TMDBApiKey,
+        config.SiteConfig.TMDBProxy
+      );
+
+      // 获取集数列表
+      const episodes = await getXiaoyaEpisodes(client, id);
+
+      const result = {
+        source: 'xiaoya',
+        source_name: '小雅',
+        id: id,
+        title: metadata.title,
+        poster: metadata.poster || '',
+        year: metadata.year || '',
+        douban_id: 0,
+        desc: metadata.plot || '',
+        episodes: episodes.map(ep => `/api/xiaoya/play?path=${encodeURIComponent(ep.path)}`),
+        episodes_titles: episodes.map(ep => ep.title),
+        subtitles: [],
+        proxyMode: false,
+      };
+
+      return NextResponse.json(result);
+    } catch (error) {
+      return NextResponse.json(
+        { error: (error as Error).message },
+        { status: 500 }
+      );
+    }
+  }
+
   // 特殊处理 openlist 源 - 直接调用 /api/detail
   if (sourceCode === 'openlist') {
     try {

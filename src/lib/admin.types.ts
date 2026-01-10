@@ -193,6 +193,13 @@ export interface AdminConfig {
     LastSyncTime?: number;
     ItemCount?: number;
   };
+  XiaoyaConfig?: {
+    Enabled: boolean; // 是否启用
+    ServerURL: string; // Alist 服务器地址
+    Token?: string; // Token 认证（推荐）
+    Username?: string; // 用户名认证（备选）
+    Password?: string; // 密码认证（备选）
+  };
 }
 
 export interface AdminConfigResult {

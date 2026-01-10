@@ -66,6 +66,7 @@ export default async function RootLayout({
   let tmdbApiKey = '';
   let openListEnabled = false;
   let embyEnabled = false;
+  let xiaoyaEnabled = false;
   let loginBackgroundImage = '';
   let registerBackgroundImage = '';
   let enableRegistration = false;
@@ -136,6 +137,11 @@ export default async function RootLayout({
       config.EmbyConfig.Sources.length > 0 &&
       config.EmbyConfig.Sources.some(s => s.enabled && s.ServerURL)
     );
+    // 检查是否启用了小雅功能
+    xiaoyaEnabled = !!(
+      config.XiaoyaConfig?.Enabled &&
+      config.XiaoyaConfig?.ServerURL
+    );
   }
 
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
@@ -155,7 +161,8 @@ export default async function RootLayout({
     VOICE_CHAT_STRATEGY: process.env.NEXT_PUBLIC_VOICE_CHAT_STRATEGY || 'webrtc-fallback',
     OPENLIST_ENABLED: openListEnabled,
     EMBY_ENABLED: embyEnabled,
-    PRIVATE_LIBRARY_ENABLED: openListEnabled || embyEnabled,
+    XIAOYA_ENABLED: xiaoyaEnabled,
+    PRIVATE_LIBRARY_ENABLED: openListEnabled || embyEnabled || xiaoyaEnabled,
     LOGIN_BACKGROUND_IMAGE: loginBackgroundImage,
     REGISTER_BACKGROUND_IMAGE: registerBackgroundImage,
     ENABLE_REGISTRATION: enableRegistration,

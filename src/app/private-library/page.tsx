@@ -9,7 +9,7 @@ import CapsuleSwitch from '@/components/CapsuleSwitch';
 import PageLayout from '@/components/PageLayout';
 import VideoCard from '@/components/VideoCard';
 
-type LibrarySourceType = 'openlist' | 'emby' | `emby:${string}` | `emby_${string}`;
+type LibrarySourceType = 'openlist' | 'emby' | 'xiaoya' | `emby:${string}` | `emby_${string}`;
 
 interface EmbySourceOption {
   key: string;
@@ -45,7 +45,7 @@ export default function PrivateLibraryPage() {
     if (typeof window !== 'undefined' && (window as any).RUNTIME_CONFIG) {
       return (window as any).RUNTIME_CONFIG;
     }
-    return { OPENLIST_ENABLED: false, EMBY_ENABLED: false };
+    return { OPENLIST_ENABLED: false, EMBY_ENABLED: false, XIAOYA_ENABLED: false };
   }, []);
 
   // 解析URL中的source参数（支持 emby:emby1 格式）
@@ -72,6 +72,10 @@ export default function PrivateLibraryPage() {
   const [embyViews, setEmbyViews] = useState<EmbyView[]>([]);
   const [selectedView, setSelectedView] = useState<string>('all');
   const [loadingViews, setLoadingViews] = useState(false);
+  // 小雅相关状态
+  const [xiaoyaPath, setXiaoyaPath] = useState<string>('/');
+  const [xiaoyaFolders, setXiaoyaFolders] = useState<Array<{ name: string; path: string }>>([]);
+  const [xiaoyaFiles, setXiaoyaFiles] = useState<Array<{ name: string; path: string }>>([]);
   const pageSize = 20;
   const observerTarget = useRef<HTMLDivElement>(null);
   const isFetchingRef = useRef(false);
@@ -270,6 +274,12 @@ export default function PrivateLibraryPage() {
         return;
       }
 
+      // 如果选择了 xiaoya 但未配置，不发起请求
+      if (sourceType === 'xiaoya' && !runtimeConfig.XIAOYA_ENABLED) {
+        setLoading(false);
+        return;
+      }
+
       // 创建新的 AbortController
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
@@ -285,6 +295,8 @@ export default function PrivateLibraryPage() {
 
         const endpoint = sourceType === 'openlist'
           ? `/api/openlist/list?page=${page}&pageSize=${pageSize}`
+          : sourceType === 'xiaoya'
+          ? `/api/xiaoya/browse?path=${encodeURIComponent(xiaoyaPath)}`
           : `/api/emby/list?page=${page}&pageSize=${pageSize}${selectedView !== 'all' ? `&parentId=${selectedView}` : ''}&embyKey=${embyKey}`;
 
         const response = await fetch(endpoint, { signal: abortController.signal });
@@ -301,19 +313,27 @@ export default function PrivateLibraryPage() {
             setVideos([]);
           }
         } else {
-          const newVideos = data.list || [];
-
-          if (isInitial) {
-            setVideos(newVideos);
+          // 小雅返回的是文件夹和文件列表
+          if (sourceType === 'xiaoya') {
+            setXiaoyaFolders(data.folders || []);
+            setXiaoyaFiles(data.files || []);
+            setVideos([]); // 小雅不使用 videos 状态
+            setHasMore(false); // 小雅不需要分页
           } else {
-            setVideos((prev) => [...prev, ...newVideos]);
-          }
+            const newVideos = data.list || [];
 
-          // 检查是否还有更多数据
-          const currentPage = data.page || page;
-          const totalPages = data.totalPages || 1;
-          const hasMoreData = currentPage < totalPages;
-          setHasMore(hasMoreData);
+            if (isInitial) {
+              setVideos(newVideos);
+            } else {
+              setVideos((prev) => [...prev, ...newVideos]);
+            }
+
+            // 检查是否还有更多数据
+            const currentPage = data.page || page;
+            const totalPages = data.totalPages || 1;
+            const hasMoreData = currentPage < totalPages;
+            setHasMore(hasMoreData);
+          }
         }
       } catch (err: any) {
         // 忽略取消请求的错误
@@ -346,7 +366,7 @@ export default function PrivateLibraryPage() {
         abortControllerRef.current.abort();
       }
     };
-  }, [sourceType, embyKey, page, selectedView, runtimeConfig]);
+  }, [sourceType, embyKey, page, selectedView, xiaoyaPath, runtimeConfig]);
 
   const handleVideoClick = (video: Video) => {
     // 构建source参数
@@ -399,12 +419,13 @@ export default function PrivateLibraryPage() {
           </p>
         </div>
 
-        {/* 第一级：源类型选择（OpenList / Emby） */}
+        {/* 第一级：源类型选择（OpenList / Emby / 小雅） */}
         <div className='mb-6 flex justify-center'>
           <CapsuleSwitch
             options={[
-              { label: 'OpenList', value: 'openlist' },
-              { label: 'Emby', value: 'emby' },
+              ...(runtimeConfig.OPENLIST_ENABLED ? [{ label: 'OpenList', value: 'openlist' }] : []),
+              ...(runtimeConfig.EMBY_ENABLED ? [{ label: 'Emby', value: 'emby' }] : []),
+              ...(runtimeConfig.XIAOYA_ENABLED ? [{ label: '小雅', value: 'xiaoya' }] : []),
             ]}
             active={sourceType}
             onChange={(value) => setSourceType(value as LibrarySourceType)}
@@ -534,6 +555,91 @@ export default function PrivateLibraryPage() {
                 className='animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg aspect-[2/3]'
               />
             ))}
+          </div>
+        ) : sourceType === 'xiaoya' ? (
+          // 小雅浏览模式
+          <div className='space-y-4'>
+            {/* 面包屑导航 */}
+            <div className='flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400'>
+              <button
+                onClick={() => setXiaoyaPath('/')}
+                className='hover:text-blue-600 dark:hover:text-blue-400'
+              >
+                根目录
+              </button>
+              {xiaoyaPath.split('/').filter(Boolean).map((part, index, arr) => {
+                const path = '/' + arr.slice(0, index + 1).join('/');
+                return (
+                  <span key={path} className='flex items-center gap-2'>
+                    <span>/</span>
+                    <button
+                      onClick={() => setXiaoyaPath(path)}
+                      className='hover:text-blue-600 dark:hover:text-blue-400'
+                    >
+                      {part}
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+
+            {/* 文件夹列表 */}
+            {xiaoyaFolders.length > 0 && (
+              <div className='space-y-2'>
+                <h3 className='text-sm font-medium text-gray-700 dark:text-gray-300'>文件夹</h3>
+                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2'>
+                  {xiaoyaFolders.map((folder) => (
+                    <button
+                      key={folder.path}
+                      onClick={() => setXiaoyaPath(folder.path)}
+                      className='flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left'
+                    >
+                      <svg className='w-5 h-5 text-blue-600' fill='currentColor' viewBox='0 0 20 20'>
+                        <path d='M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z' />
+                      </svg>
+                      <span className='text-sm truncate'>{folder.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 视频文件列表 */}
+            {xiaoyaFiles.length > 0 && (
+              <div className='space-y-2'>
+                <h3 className='text-sm font-medium text-gray-700 dark:text-gray-300'>视频文件</h3>
+                <div className='grid grid-cols-1 gap-2'>
+                  {xiaoyaFiles.map((file) => {
+                    // 从当前路径提取文件夹名作为标题
+                    const pathParts = xiaoyaPath.split('/').filter(Boolean);
+                    const folderName = pathParts[pathParts.length - 1] || '';
+                    // 清理文件夹名（移除年份和 TMDb ID）
+                    const title = folderName
+                      .replace(/\s*\(\d{4}\)\s*\{tmdb-\d+\}$/i, '')
+                      .trim() || file.name;
+
+                    return (
+                      <button
+                        key={file.path}
+                        onClick={() => router.push(`/play?source=xiaoya&id=${encodeURIComponent(file.path)}&title=${encodeURIComponent(title)}`)}
+                        className='flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left'
+                      >
+                        <svg className='w-5 h-5 text-green-600' fill='currentColor' viewBox='0 0 20 20'>
+                          <path d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' />
+                        </svg>
+                        <span className='text-sm truncate'>{file.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {xiaoyaFolders.length === 0 && xiaoyaFiles.length === 0 && (
+              <div className='text-center py-12'>
+                <p className='text-gray-500 dark:text-gray-400'>此目录为空</p>
+              </div>
+            )}
           </div>
         ) : videos.length === 0 ? (
           <div className='text-center py-12'>
