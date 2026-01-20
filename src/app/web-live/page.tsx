@@ -18,6 +18,7 @@ export default function WebLivePage() {
   const [sources, setSources] = useState<any[]>([]);
   const [currentSource, setCurrentSource] = useState<any | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
+  const [originalVideoUrl, setOriginalVideoUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'rooms' | 'platforms'>('rooms');
   const [isChannelListCollapsed, setIsChannelListCollapsed] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
@@ -119,6 +120,7 @@ export default function WebLivePage() {
       if (res.ok) {
         const data = await res.json();
         setVideoUrl(data.url);
+        setOriginalVideoUrl(data.originalUrl || data.url);
       } else {
         const data = await res.json();
         setErrorMessage(data.error || '获取直播流失败');
@@ -321,8 +323,8 @@ export default function WebLivePage() {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          if (videoUrl) {
-                            window.open(`potplayer://${videoUrl}`, '_blank');
+                          if (originalVideoUrl) {
+                            window.open(`potplayer://${originalVideoUrl}`, '_blank');
                           }
                         }}
                         className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
@@ -342,8 +344,8 @@ export default function WebLivePage() {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          if (videoUrl) {
-                            window.open(`vlc://${videoUrl}`, '_blank');
+                          if (originalVideoUrl) {
+                            window.open(`vlc://${originalVideoUrl}`, '_blank');
                           }
                         }}
                         className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
@@ -363,8 +365,8 @@ export default function WebLivePage() {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          if (videoUrl) {
-                            window.open(`mpv://${videoUrl}`, '_blank');
+                          if (originalVideoUrl) {
+                            window.open(`mpv://${originalVideoUrl}`, '_blank');
                           }
                         }}
                         className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
@@ -384,9 +386,9 @@ export default function WebLivePage() {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          if (videoUrl) {
+                          if (originalVideoUrl) {
                             window.open(
-                              `intent://${videoUrl}#Intent;package=com.mxtech.videoplayer.ad;S.title=${encodeURIComponent(
+                              `intent://${originalVideoUrl}#Intent;package=com.mxtech.videoplayer.ad;S.title=${encodeURIComponent(
                                 currentSource?.name || '直播'
                               )};end`,
                               '_blank'
@@ -410,8 +412,8 @@ export default function WebLivePage() {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          if (videoUrl) {
-                            window.open(`nplayer-${videoUrl}`, '_blank');
+                          if (originalVideoUrl) {
+                            window.open(`nplayer-${originalVideoUrl}`, '_blank');
                           }
                         }}
                         className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
@@ -431,9 +433,9 @@ export default function WebLivePage() {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          if (videoUrl) {
+                          if (originalVideoUrl) {
                             window.open(
-                              `iina://weblink?url=${encodeURIComponent(videoUrl)}`,
+                              `iina://weblink?url=${encodeURIComponent(originalVideoUrl)}`,
                               '_blank'
                             );
                           }
